@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "Rock Miner Idle Clicker",
+    "slug": "rock-miner-idle-clicker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/rock-miner-app-icon.png",
+    "scheme": "fooddelivery",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/rock-miner-app-icon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/rock-miner-app-icon.png",
+          "imageWidth": 225,
+          "resizeMode": "contain",
+          "backgroundColor": "#3A2F27",
+          "dark": {
+            "backgroundColor": "#3A2F27"
+          }
+        }
+      ],
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "be6f1739-412c-42e3-a73a-6718254f37bc"
+      }
+    }
+  }
+}
