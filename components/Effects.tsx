@@ -1,7 +1,17 @@
 import { useEffect, useRef } from "react";
-import { Animated, Easing, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import Animated, {
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withSpring,
+  withTiming,
+  type SharedValue,
+} from "react-native-reanimated";
 
-/** Number / text that pops, floats up and fades out. */
 export function FloatText({
   text,
   color = "#F3E9DC",
@@ -9,7 +19,6 @@ export function FloatText({
   x,
   y = 0,
   rise = 110,
-  onDone,
 }: {
   text: string;
   color?: string;
@@ -17,85 +26,98 @@ export function FloatText({
   x: number;
   y?: number;
   rise?: number;
-  onDone: () => void;
 }) {
-  const v = useRef(new Animated.Value(0)).current;
+  const v = useSharedValue(0);
+
   useEffect(() => {
-    Animated.timing(v, {
-      toValue: 1,
+    v.value = withTiming(1, {
       duration: 800,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start(({ finished }) => finished && onDone());
-  }, []);
+    });
+  }, [v]);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: interpolate(v.value, [0, 0.12, 0.7, 1], [0, 1, 1, 0]),
+    transform: [
+      { translateY: interpolate(v.value, [0, 1], [0, -rise]) },
+      {
+        scale: interpolate(v.value, [0, 0.15, 0.3, 1], [0.4, 1.4, 1, 1]),
+      },
+    ],
+  }));
+
   return (
     <Animated.Text
-      style={{
-        position: "absolute",
-        left: x,
-        top: y,
-        pointerEvents: "none",
-        fontFamily: "Oswald_700Bold",
-        fontSize: size,
-        color,
-        textShadowColor: "#120E0C",
-        textShadowOffset: { width: 0, height: 3 },
-        textShadowRadius: 0,
-        opacity: v.interpolate({
-          inputRange: [0, 0.12, 0.7, 1],
-          outputRange: [0, 1, 1, 0],
-        }),
-        transform: [
-          {
-            translateY: v.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, -rise],
-            }),
-          },
-          {
-            scale: v.interpolate({
-              inputRange: [0, 0.15, 0.3, 1],
-              outputRange: [0.4, 1.4, 1, 1],
-            }),
-          },
-        ],
-      }}>
+      style={[
+        {
+          position: "absolute",
+          left: x,
+          top: y,
+          pointerEvents: "none",
+          fontFamily: "Oswald_700Bold",
+          fontSize: size,
+          color,
+          textShadowColor: "#120E0C",
+          textShadowOffset: { width: 0, height: 3 },
+          textShadowRadius: 0,
+        },
+        style,
+      ]}>
       {text}
     </Animated.Text>
   );
 }
 
-/** Little chunks of rock flying out from the center. */
-export function Debris({
+function Chunk({
+  progress,
+  a,
+  d,
+  s,
+  r,
   color,
-  count,
-  onDone,
 }: {
+  progress: SharedValue<number>;
+  a: number;
+  d: number;
+  s: number;
+  r: number;
   color: string;
-  count: number;
-  onDone: () => void;
 }) {
-  const parts = useRef(
-    Array.from({ length: count }, () => ({
-      v: new Animated.Value(0),
-      a: Math.random() * Math.PI * 2,
-      d: 50 + Math.random() * 90,
-      s: 5 + Math.random() * 9,
-      r: Math.random() * 540 - 270,
-    })),
-  ).current;
+  const style = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.7, 1], [1, 1, 0]),
+    transform: [
+      { translateX: Math.cos(a) * d * progress.value },
+      { translateY: (Math.sin(a) * d + 60) * progress.value },
+      { rotate: `${r * progress.value}deg` },
+    ],
+  }));
+  return (
+    <Animated.View
+      style={[
+        {
+          position: "absolute",
+          width: s,
+          height: s,
+          borderRadius: 2,
+          backgroundColor: color,
+        },
+        style,
+      ]}
+    />
+  );
+}
+
+export function Debris({ color, count }: { color: string; count: number }) {
+  const progress = useSharedValue(0);
+  const parts = useBurstParts(count);
+
   useEffect(() => {
-    Animated.parallel(
-      parts.map((p) =>
-        Animated.timing(p.v, {
-          toValue: 1,
-          duration: 500 + Math.random() * 300,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ),
-    ).start(() => onDone());
-  }, []);
+    progress.value = withTiming(1, {
+      duration: 700,
+      easing: Easing.out(Easing.quad),
+    });
+  }, [progress]);
+
   return (
     <View
       pointerEvents="none"
@@ -104,73 +126,45 @@ export function Debris({
         { alignItems: "center", justifyContent: "center" },
       ]}>
       {parts.map((p, i) => (
-        <Animated.View
+        <Chunk
           key={i}
-          style={{
-            position: "absolute",
-            width: p.s,
-            height: p.s,
-            borderRadius: 2,
-            backgroundColor: i % 3 === 0 ? "#F3E9DC" : color,
-            opacity: p.v.interpolate({
-              inputRange: [0, 0.7, 1],
-              outputRange: [1, 1, 0],
-            }),
-            transform: [
-              {
-                translateX: p.v.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, Math.cos(p.a) * p.d],
-                }),
-              },
-              {
-                translateY: p.v.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, Math.sin(p.a) * p.d + 60],
-                }),
-              },
-              {
-                rotate: p.v.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ["0deg", `${p.r}deg`],
-                }),
-              },
-            ],
-          }}
+          progress={progress}
+          {...p}
+          color={i % 3 === 0 ? "#F3E9DC" : color}
         />
       ))}
     </View>
   );
 }
+function useBurstParts(count: number) {
+  return useRef(
+    Array.from({ length: count }, () => ({
+      a: Math.random() * Math.PI * 2,
+      d: 50 + Math.random() * 90,
+      s: 5 + Math.random() * 9,
+      r: Math.random() * 540 - 270,
+    })),
+  ).current;
+}
 
-/** Full-screen color flash (used for critical hits). `id` changes -> flash plays. */
 export function Flash({ id, color }: { id: number; color: string }) {
-  const v = useRef(new Animated.Value(0)).current;
+  const v = useSharedValue(0);
   useEffect(() => {
     if (!id) return;
-    Animated.sequence([
-      Animated.timing(v, { toValue: 1, duration: 60, useNativeDriver: true }),
-      Animated.timing(v, { toValue: 0, duration: 280, useNativeDriver: true }),
-    ]).start();
-  }, [id]);
+    v.value = withSequence(
+      withTiming(1, { duration: 60 }),
+      withTiming(0, { duration: 280 }),
+    );
+  }, [id, v]);
+  const style = useAnimatedStyle(() => ({ opacity: v.value * 0.28 }));
   return (
     <Animated.View
       pointerEvents="none"
-      style={[
-        StyleSheet.absoluteFill,
-        {
-          backgroundColor: color,
-          opacity: v.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0, 0.28],
-          }),
-        },
-      ]}
+      style={[StyleSheet.absoluteFill, { backgroundColor: color }, style]}
     />
   );
 }
 
-/** Big banner that drops in from the top: CRITICAL HIT, JACKPOT, NEW ZONE... */
 export function Banner({
   id,
   title,
@@ -184,52 +178,38 @@ export function Banner({
   bg: string;
   fg: string;
 }) {
-  const v = useRef(new Animated.Value(0)).current;
+  const v = useSharedValue(0);
   useEffect(() => {
     if (!id) return;
-    v.setValue(0);
-    Animated.sequence([
-      Animated.spring(v, {
-        toValue: 1,
-        friction: 6,
-        tension: 140,
-        useNativeDriver: true,
-      }),
-      Animated.delay(700),
-      Animated.timing(v, { toValue: 2, duration: 250, useNativeDriver: true }),
-    ]).start();
-  }, [id]);
+    v.value = 0;
+    v.value = withSequence(
+      withSpring(1, { damping: 9, stiffness: 180 }),
+      withDelay(700, withTiming(2, { duration: 250 })),
+    );
+  }, [id, v]);
+  const style = useAnimatedStyle(() => ({
+    opacity: interpolate(v.value, [0, 0.2, 1, 2], [0, 1, 1, 0]),
+    transform: [
+      { translateY: interpolate(v.value, [0, 1, 2], [-30, 0, -10]) },
+      { scale: interpolate(v.value, [0, 1, 2], [0.7, 1, 0.95]) },
+    ],
+  }));
   return (
     <Animated.View
       pointerEvents="none"
-      style={{
-        position: "absolute",
-        left: 20,
-        right: 20,
-        top: 0,
-        alignItems: "center",
-        paddingVertical: 8,
-        borderRadius: 12,
-        backgroundColor: bg,
-        opacity: v.interpolate({
-          inputRange: [0, 0.2, 1, 2],
-          outputRange: [0, 1, 1, 0],
-        }),
-        transform: [
-          {
-            translateY: v.interpolate({
-              inputRange: [0, 1, 2],
-              outputRange: [-30, 0, -10],
-            }),
-          },
-          {
-            scale: v.interpolate({
-              inputRange: [0, 1, 2],
-              outputRange: [0.7, 1, 0.95],
-            }),
-          },
-        ],
-      }}>
+      style={[
+        {
+          position: "absolute",
+          left: 20,
+          right: 20,
+          top: 0,
+          alignItems: "center",
+          paddingVertical: 8,
+          borderRadius: 12,
+          backgroundColor: bg,
+        },
+        style,
+      ]}>
       <Animated.Text
         style={{
           fontFamily: "Oswald_700Bold",

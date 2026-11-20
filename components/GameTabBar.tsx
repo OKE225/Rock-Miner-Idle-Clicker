@@ -1,7 +1,20 @@
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { useEffect, useRef } from "react";
-import { Animated, Pressable, View } from "react-native";
+import { useEffect } from "react";
+import { Pressable, View } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const TABS = ["index", "shop", "chests", "map", "quests", "more"];
+const PARENT: Record<string, string> = {
+  store: "more",
+  skills: "more",
+  stats: "more",
+  settings: "more",
+};
 
 function TabItem({
   label,
@@ -12,54 +25,50 @@ function TabItem({
   focused: boolean;
   onPress: () => void;
 }) {
-  const bar = useRef(new Animated.Value(focused ? 1 : 0)).current;
-  const lift = useRef(new Animated.Value(1)).current;
+  const bar = useSharedValue(focused ? 1 : 0);
+  const lift = useSharedValue(1);
   useEffect(() => {
-    Animated.spring(bar, {
-      toValue: focused ? 1 : 0,
-      friction: 6,
-      useNativeDriver: true,
-    }).start();
-    if (focused)
-      Animated.sequence([
-        Animated.timing(lift, {
-          toValue: 1.18,
-          duration: 90,
-          useNativeDriver: true,
-        }),
-        Animated.spring(lift, {
-          toValue: 1,
-          friction: 4,
-          useNativeDriver: true,
-        }),
-      ]).start();
-  }, [focused]);
+    bar.value = withTiming(focused ? 1 : 0, { duration: 150 });
+
+    if (focused) {
+      lift.value = withTiming(1, { duration: 150 });
+    }
+  }, [focused, bar, lift]);
+  const barStyle = useAnimatedStyle(() => ({
+    opacity: bar.value,
+    transform: [{ scaleX: bar.value }],
+  }));
+  const textStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: lift.value }],
+  }));
   return (
     <Pressable
       onPress={onPress}
       className="min-h-[56px] flex-1 items-center justify-center">
-      {/* amber line on top of the active tab (same as the design) */}
       <Animated.View
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 3,
-          backgroundColor: "#E8A33D",
-          opacity: bar,
-          transform: [{ scaleX: bar }],
-        }}
+        style={[
+          {
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 3,
+            backgroundColor: "#E8A33D",
+          },
+          barStyle,
+        ]}
       />
       <Animated.Text
-        style={{
-          fontFamily: "Oswald_500Medium",
-          fontSize: 12,
-          letterSpacing: 0.4,
-          textTransform: "uppercase",
-          color: focused ? "#E8A33D" : "#B8A790",
-          transform: [{ scale: lift }],
-        }}>
+        style={[
+          {
+            fontFamily: "Oswald_500Medium",
+            fontSize: 12,
+            letterSpacing: 0.4,
+            textTransform: "uppercase",
+            color: focused ? "#E8A33D" : "#B8A790",
+          },
+          textStyle,
+        ]}>
         {label}
       </Animated.Text>
     </Pressable>
@@ -76,8 +85,10 @@ export default function GameTabBar({
     <View
       className="flex-row border-t border-line bg-deep"
       style={{ paddingBottom: bottom }}>
-      {state.routes.map((route, i) => {
-        const focused = state.index === i;
+      {state.routes.map((route) => {
+        if (!TABS.includes(route.name)) return null;
+        const current = state.routes[state.index].name;
+        const focused = (PARENT[current] ?? current) === route.name;
         const label = descriptors[route.key].options.title ?? route.name;
         const press = () => {
           const e = navigation.emit({

@@ -1,4 +1,5 @@
 import "./global.css";
+import { useEffect } from "react";
 import {
   Oswald_500Medium,
   Oswald_700Bold,
@@ -12,6 +13,7 @@ import { Tabs } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import GameTabBar from "@/components/GameTabBar";
 import { GameProvider } from "@/context/GameContext";
+import { initPurchases } from "@/services/purchases";
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -20,6 +22,9 @@ export default function RootLayout() {
     SourceSans3_400Regular,
     SourceSans3_600SemiBold,
   });
+  useEffect(() => {
+    initPurchases();
+  }, []);
   if (!fontsLoaded) return null;
 
   return (
@@ -27,6 +32,7 @@ export default function RootLayout() {
       <StatusBar style="light" />
       <Tabs
         tabBar={(props) => <GameTabBar {...props} />}
+        backBehavior="history"
         screenOptions={{
           headerShown: false,
           animation: "fade",
@@ -34,9 +40,17 @@ export default function RootLayout() {
         }}>
         <Tabs.Screen name="index" options={{ title: "Mine" }} />
         <Tabs.Screen name="shop" options={{ title: "Shop" }} />
+        <Tabs.Screen name="chests" options={{ title: "Chests" }} />
         <Tabs.Screen name="map" options={{ title: "Map" }} />
         <Tabs.Screen name="quests" options={{ title: "Quests" }} />
-        <Tabs.Screen name="settings" options={{ title: "Settings" }} />
+        <Tabs.Screen name="more" options={{ title: "More" }} />
+        <Tabs.Screen name="store" options={{ href: null, title: "Store" }} />
+        <Tabs.Screen name="skills" options={{ href: null, title: "Skills" }} />
+        <Tabs.Screen name="stats" options={{ href: null, title: "Stats" }} />
+        <Tabs.Screen
+          name="settings"
+          options={{ href: null, title: "Settings" }}
+        />
       </Tabs>
     </GameProvider>
   );

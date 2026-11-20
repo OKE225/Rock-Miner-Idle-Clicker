@@ -1,6 +1,7 @@
 import { StyleSheet } from "react-native";
 import Svg, {
   Circle,
+  Ellipse,
   G,
   Line,
   Path,
@@ -8,11 +9,10 @@ import Svg, {
   Polyline,
   Rect,
 } from "react-native-svg";
-import type { RockId, ToolId } from "@/context/GameContext";
+import type { ChestId, HazardId, RockId, ToolId } from "@/context/GameContext";
 
 const OUT = "#120E0C";
 
-/** Mix two #rrggbb colors. t = 0 -> hex, t = 1 -> to */
 export const mix = (hex: string, to: string, t: number) => {
   const parse = (h: string) =>
     [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -30,7 +30,6 @@ export const mix = (hex: string, to: string, t: number) => {
   );
 };
 
-/* ---------- small building blocks ---------- */
 const Crystal = ({
   x,
   y,
@@ -105,7 +104,6 @@ const Spark = ({
   />
 );
 
-/* ---------- ROCKS (viewBox 100x100) ---------- */
 const GEMS: Partial<Record<RockId, [string, string]>> = {
   diamond: ["#BDF3EE", "#7FD8FF"],
   emerald: ["#7CF59A", "#3DDC84"],
@@ -219,17 +217,7 @@ export const RockGraphic = ({
           <Spark x={76} y={36} s={6} c="#fff" />
         </G>
       )}
-      {id === "vibranium" && (
-        <Circle
-          cx="50"
-          cy="56"
-          r="36"
-          stroke="#9B7CFF"
-          strokeWidth={1.5}
-          fill="none"
-          opacity={0.6}
-        />
-      )}
+
       {id === "obsidian" && (
         <G>
           <Polygon
@@ -297,7 +285,6 @@ export const RockGraphic = ({
   );
 };
 
-/* ---------- TOOLS ---------- */
 const HEAD: Partial<Record<ToolId, string>> = {
   woodenPickaxe: "#A9743A",
   stonePickaxe: "#8A8A8A",
@@ -497,7 +484,6 @@ export const ToolGraphic = ({
   );
 };
 
-/* ---------- ZONE BACKGROUND DECORATIONS (full screen) ---------- */
 const GEM_DECOR: Partial<Record<RockId, [string, string]>> = {
   diamond: ["#4FD1C5", "#BDF3EE"],
   emerald: ["#3DDC84", "#7CF59A"],
@@ -646,3 +632,417 @@ export function ZoneDecor({ rockId }: { rockId: RockId }) {
     </Svg>
   );
 }
+
+export const DiamondIcon = ({ size = 20 }: { size?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 100 100">
+    <Polygon
+      points="22,38 36,16 64,16 78,38"
+      fill="#8FE0FF"
+      stroke={OUT}
+      strokeWidth={5}
+      strokeLinejoin="round"
+    />
+    <Polygon
+      points="22,38 78,38 50,88"
+      fill="#3AA8EE"
+      stroke={OUT}
+      strokeWidth={5}
+      strokeLinejoin="round"
+    />
+    <Polygon points="36,16 44,38 22,38" fill="#fff" fillOpacity={0.45} />
+    <Polygon points="64,16 56,38 78,38" fill="#fff" fillOpacity={0.2} />
+    <Polygon points="44,38 56,38 50,88" fill="#fff" fillOpacity={0.25} />
+  </Svg>
+);
+
+const CHEST_COLORS: Record<
+  ChestId,
+  { body: string; lid: string; band: string }
+> = {
+  wooden: { body: "#8A5A2B", lid: "#A9743A", band: "#5A3A1A" },
+  stone: { body: "#7A7A7A", lid: "#9A9A9A", band: "#4A4A4A" },
+  iron: { body: "#8D96A3", lid: "#B0B7C3", band: "#3F4754" },
+  golden: { body: "#C98A1E", lid: "#FFC93C", band: "#8A5A00" },
+  crystal: { body: "#8A5A94", lid: "#F0ABFC", band: "#4FD1C5" },
+  vibranium: { body: "#3A3350", lid: "#8A5CF6", band: "#C9B8FF" },
+};
+
+export const ChestGraphic = ({
+  kind,
+  open = false,
+  size = 80,
+}: {
+  kind: ChestId;
+  open?: boolean;
+  size?: number;
+}) => {
+  const c = CHEST_COLORS[kind];
+  return (
+    <Svg width={size} height={size} viewBox="0 0 100 100">
+      {open && (
+        <G>
+          <Circle cx="50" cy="44" r="34" fill="#FFE9A0" opacity={0.45} />
+          <Spark x={28} y={20} s={7} c="#fff" />
+          <Spark x={74} y={16} s={9} c="#FFE9A0" />
+          <Spark x={52} y={6} s={6} c="#fff" />
+        </G>
+      )}
+      <Rect
+        x="12"
+        y="46"
+        width="76"
+        height="40"
+        rx="6"
+        fill={c.body}
+        stroke={OUT}
+        strokeWidth={4}
+      />
+      <Rect
+        x="12"
+        y="46"
+        width="76"
+        height="9"
+        fill="#000"
+        fillOpacity={0.22}
+      />
+      <Rect
+        x="24"
+        y="46"
+        width="9"
+        height="40"
+        fill={c.band}
+        stroke={OUT}
+        strokeWidth={2.5}
+      />
+      <Rect
+        x="67"
+        y="46"
+        width="9"
+        height="40"
+        fill={c.band}
+        stroke={OUT}
+        strokeWidth={2.5}
+      />
+      <G transform={open ? "rotate(-32 12 46) translate(0 -4)" : undefined}>
+        <Path
+          d="M12 46 Q12 16 50 16 Q88 16 88 46 Z"
+          fill={c.lid}
+          stroke={OUT}
+          strokeWidth={4}
+          strokeLinejoin="round"
+        />
+        <Path
+          d="M20 40 Q22 24 46 22"
+          fill="none"
+          stroke="#fff"
+          strokeOpacity={0.4}
+          strokeWidth={3}
+          strokeLinecap="round"
+        />
+        <Rect
+          x="24"
+          y="18"
+          width="9"
+          height="28"
+          fill={c.band}
+          stroke={OUT}
+          strokeWidth={2.5}
+        />
+        <Rect
+          x="67"
+          y="18"
+          width="9"
+          height="28"
+          fill={c.band}
+          stroke={OUT}
+          strokeWidth={2.5}
+        />
+      </G>
+      {!open && (
+        <Rect
+          x="43"
+          y="40"
+          width="14"
+          height="16"
+          rx="3"
+          fill="#FFD84D"
+          stroke={OUT}
+          strokeWidth={3}
+        />
+      )}
+      {kind === "crystal" && (
+        <Polygon
+          points="50,8 56,18 50,26 44,18"
+          fill="#BDF3EE"
+          stroke={OUT}
+          strokeWidth={2}
+        />
+      )}
+      {kind === "vibranium" && (
+        <Circle
+          cx="50"
+          cy="52"
+          r="46"
+          stroke="#9B7CFF"
+          strokeWidth={1.5}
+          fill="none"
+          opacity={0.6}
+        />
+      )}
+    </Svg>
+  );
+};
+
+export const HazardGraphic = ({
+  kind,
+  size = 120,
+  damage = 0,
+}: {
+  kind: HazardId;
+  size?: number;
+  damage?: number;
+}) => (
+  <Svg width={size} height={size} viewBox="0 0 100 100">
+    {kind === "evil" && (
+      <G>
+        <Circle cx="50" cy="56" r="46" fill="#D9573B" opacity={0.2} />
+        <Path
+          d="M14 70 L24 38 L48 17 L74 24 L89 52 L82 80 L50 90 L24 85Z"
+          fill="#5A2A2A"
+          stroke={OUT}
+          strokeWidth={4}
+          strokeLinejoin="round"
+        />
+        <Path
+          d="M20 62 L26 40 L48 22 L60 28 L40 44 Z"
+          fill="#fff"
+          fillOpacity={0.12}
+        />
+        <Path
+          d="M50 90 L82 80 L89 52 L70 64 L56 78 Z"
+          fill="#000"
+          fillOpacity={0.35}
+        />
+        <Polygon
+          points="28,46 46,52 44,61 28,57"
+          fill="#FF5C3A"
+          stroke={OUT}
+          strokeWidth={2}
+        />
+        <Polygon
+          points="72,46 54,52 56,61 72,57"
+          fill="#FF5C3A"
+          stroke={OUT}
+          strokeWidth={2}
+        />
+        <Circle cx="40" cy="55" r="2.6" fill={OUT} />
+        <Circle cx="60" cy="55" r="2.6" fill={OUT} />
+        <Line
+          x1="25"
+          y1="40"
+          x2="47"
+          y2="49"
+          stroke={OUT}
+          strokeWidth={4.5}
+          strokeLinecap="round"
+        />
+        <Line
+          x1="75"
+          y1="40"
+          x2="53"
+          y2="49"
+          stroke={OUT}
+          strokeWidth={4.5}
+          strokeLinecap="round"
+        />
+        <Path
+          d="M30 72 L38 66 L44 75 L50 66 L56 75 L62 66 L70 72 L66 80 L34 80 Z"
+          fill="#2A0F0F"
+          stroke={OUT}
+          strokeWidth={2.5}
+          strokeLinejoin="round"
+        />
+      </G>
+    )}
+    {kind === "cavein" && (
+      <G>
+        <Circle cx="50" cy="60" r="46" fill="#E8A33D" opacity={0.14} />
+        <Polygon
+          points="12,88 18,60 40,52 54,66 50,88"
+          fill="#6A6672"
+          stroke={OUT}
+          strokeWidth={3}
+          strokeLinejoin="round"
+        />
+        <Polygon
+          points="40,88 46,56 72,46 88,62 84,88"
+          fill="#7A7680"
+          stroke={OUT}
+          strokeWidth={3}
+          strokeLinejoin="round"
+        />
+        <Polygon
+          points="28,62 38,34 62,30 72,52 50,64"
+          fill="#8A8690"
+          stroke={OUT}
+          strokeWidth={3}
+          strokeLinejoin="round"
+        />
+        <Rect
+          x="14"
+          y="30"
+          width="66"
+          height="9"
+          rx="3"
+          fill="#8A5A2B"
+          stroke={OUT}
+          strokeWidth={2.5}
+          transform="rotate(-24 47 34)"
+        />
+        <Rect
+          x="20"
+          y="44"
+          width="64"
+          height="9"
+          rx="3"
+          fill="#A9743A"
+          stroke={OUT}
+          strokeWidth={2.5}
+          transform="rotate(18 52 48)"
+        />
+        <Polygon
+          points="30,86 36,70 52,66 60,80 54,88"
+          fill="#9A96A0"
+          stroke={OUT}
+          strokeWidth={3}
+          strokeLinejoin="round"
+        />
+        <G fill="#E8DCC8" opacity={0.35}>
+          <Circle cx="20" cy="40" r="7" />
+          <Circle cx="80" cy="34" r="6" />
+          <Circle cx="66" cy="22" r="5" />
+        </G>
+      </G>
+    )}
+    {kind === "monster" && (
+      <G>
+        <Circle cx="50" cy="52" r="48" fill="#9B7CFF" opacity={0.18} />
+        <Path
+          d="M14 66 Q2 42 20 28"
+          stroke="#5A3A8A"
+          strokeWidth={9}
+          fill="none"
+          strokeLinecap="round"
+        />
+        <Path
+          d="M86 66 Q98 42 80 28"
+          stroke="#5A3A8A"
+          strokeWidth={9}
+          fill="none"
+          strokeLinecap="round"
+        />
+        <Polygon
+          points="28,24 22,4 42,17"
+          fill="#E8D5A0"
+          stroke={OUT}
+          strokeWidth={2.5}
+          strokeLinejoin="round"
+        />
+        <Polygon
+          points="72,24 78,4 58,17"
+          fill="#E8D5A0"
+          stroke={OUT}
+          strokeWidth={2.5}
+          strokeLinejoin="round"
+        />
+        <Ellipse
+          cx="50"
+          cy="46"
+          rx="31"
+          ry="32"
+          fill="#5A3A8A"
+          stroke={OUT}
+          strokeWidth={4}
+        />
+        <Ellipse
+          cx="38"
+          cy="30"
+          rx="12"
+          ry="7"
+          fill="#fff"
+          fillOpacity={0.15}
+        />
+        <Circle
+          cx="50"
+          cy="38"
+          r="15"
+          fill="#FFD84D"
+          stroke={OUT}
+          strokeWidth={3}
+        />
+        <Ellipse cx="50" cy="38" rx="4" ry="11" fill={OUT} />
+        <Circle
+          cx="29"
+          cy="52"
+          r="5.5"
+          fill="#FFD84D"
+          stroke={OUT}
+          strokeWidth={2}
+        />
+        <Circle
+          cx="71"
+          cy="52"
+          r="5.5"
+          fill="#FFD84D"
+          stroke={OUT}
+          strokeWidth={2}
+        />
+        <Path
+          d="M28 62 Q50 84 72 62 Z"
+          fill="#2A0F2E"
+          stroke={OUT}
+          strokeWidth={3}
+          strokeLinejoin="round"
+        />
+        <Polygon points="34,64 39,64 36.5,71" fill="#fff" />
+        <Polygon points="45,67 50,67 47.5,75" fill="#fff" />
+        <Polygon points="55,67 60,67 57.5,75" fill="#fff" />
+        <Polygon points="64,64 69,64 66.5,71" fill="#fff" />
+        <Path
+          d="M8 92 L16 76 L38 72 L62 74 L84 72 L92 92 Z"
+          fill="#5A5560"
+          stroke={OUT}
+          strokeWidth={3.5}
+          strokeLinejoin="round"
+        />
+        <Path
+          d="M20 86 L30 78 L36 86"
+          fill="none"
+          stroke={OUT}
+          strokeWidth={2}
+          opacity={0.6}
+        />
+      </G>
+    )}
+    {damage > 0.3 && (
+      <Polyline
+        points="50,22 44,40 54,54 46,70"
+        fill="none"
+        stroke={OUT}
+        strokeWidth={2.4}
+        strokeLinecap="round"
+        opacity={0.85}
+      />
+    )}
+    {damage > 0.7 && (
+      <Polyline
+        points="70,34 62,50 74,62"
+        fill="none"
+        stroke={OUT}
+        strokeWidth={2.4}
+        strokeLinecap="round"
+        opacity={0.85}
+      />
+    )}
+  </Svg>
+);

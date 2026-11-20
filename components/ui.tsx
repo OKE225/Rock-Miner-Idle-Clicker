@@ -1,10 +1,19 @@
+import { router } from "expo-router";
 import { useEffect, useRef, type ReactNode } from "react";
-import { Animated, Pressable, Text, View, type TextProps } from "react-native";
+import { Pressable, Text, View, type TextProps } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { formatNumber } from "@/context/GameContext";
+import { formatNumber, useGame } from "@/context/GameContext";
 import { CalmBackdrop } from "./Backdrop";
+import { DiamondIcon } from "./GameGraphics";
 
-const TONES = {
+export const TONES = {
   ink: "text-ink",
   mute: "text-mute",
   amber: "text-amber",
@@ -14,7 +23,6 @@ const TONES = {
   dark: "text-bg",
 };
 
-/** Text with the project fonts. d = Oswald heading (uppercase), bold = Source Sans semi-bold. */
 export function Txt({
   tone = "ink",
   d = false,
@@ -35,7 +43,6 @@ export function Txt({
   );
 }
 
-/** Screen with a gradient background (used by Shop, Map, Quests). */
 export function Screen({ children }: { children: ReactNode }) {
   const { top } = useSafeAreaInsets();
   return (
@@ -48,139 +55,171 @@ export function Screen({ children }: { children: ReactNode }) {
   );
 }
 
-/** Coins on the left, any second value on the right. The coin number "pops" when it grows. */
-export function TopBar({
-  coins,
-  label,
-  value,
-}: {
-  coins: number;
-  label: string;
-  value: string;
-}) {
-  const pop = useRef(new Animated.Value(1)).current;
-  const prev = useRef(coins);
+function usePop(value: number) {
+  const pop = useSharedValue(1);
+  const prev = useRef(value);
+
   useEffect(() => {
-    if (coins > prev.current) {
-      Animated.sequence([
-        Animated.timing(pop, {
-          toValue: 1.2,
-          duration: 80,
-          useNativeDriver: true,
-        }),
-        Animated.spring(pop, {
-          toValue: 1,
-          friction: 4,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-    prev.current = coins;
-  }, [coins]);
+    if (value > prev.current)
+      pop.value = withSequence(
+        withTiming(1.2, { duration: 80 }),
+        withTiming(1, { duration: 120 }),
+      );
+
+    prev.current = value;
+  }, [value, pop]);
+
+  return useAnimatedStyle(() => ({
+    transform: [{ scale: pop.value }],
+  }));
+}
+
+export function TopBar() {
+  const { myCoins, diamonds } = useGame();
+  const coinPop = usePop(myCoins);
+  const diaPop = usePop(diamonds);
   return (
-    <View className="flex-row justify-between px-5 pb-2 pt-4">
+    <View className="flex-row items-end justify-between px-5 pb-2 pt-4">
       <View>
         <Txt tone="mute" className="text-[13px]">
           Coins
         </Txt>
-        <Animated.View
-          style={{
-            transform: [{ scale: pop }],
-            transformOrigin: "left center",
-          }}
-          className="flex-row items-center gap-2">
-          <View className="h-5 w-5 rounded-full border-2 border-[#B26A00] bg-[#FFC93C]" />
-          <Txt d tone="amber" className="text-[30px]">
-            {formatNumber(coins)}
-          </Txt>
+        <Animated.View style={[{ transformOrigin: "left center" }, coinPop]}>
+          <View className="flex-row items-center gap-2">
+            <View className="h-5 w-5 rounded-full border-2 border-[#B26A00] bg-[#FFC93C]" />
+            <Txt d tone="amber" className="text-[30px]">
+              {formatNumber(myCoins)}
+            </Txt>
+          </View>
         </Animated.View>
       </View>
-      <View className="items-end">
+      <Pressable onPress={() => router.push("/store")} className="items-end">
         <Txt tone="mute" className="text-[13px]">
-          {label}
+          Diamonds
         </Txt>
-        <Txt d className="text-[30px]">
-          {value}
-        </Txt>
-      </View>
+        <Animated.View style={[{ transformOrigin: "right center" }, diaPop]}>
+          <View className="flex-row items-center gap-1.5 rounded-full border-2 border-line bg-deep py-0.5 pl-2 pr-1.5">
+            <DiamondIcon size={24} />
+            <Txt d className="text-[22px]" style={{ color: "#7FD8FF" }}>
+              {formatNumber(diamonds)}
+            </Txt>
+            <View className="h-5 w-5 items-center justify-center rounded-full bg-teal">
+              <Txt d tone="dark" className="text-[14px] leading-[16px]">
+                +
+              </Txt>
+            </View>
+          </View>
+        </Animated.View>
+      </Pressable>
     </View>
   );
 }
 
-/** Smoothly animated progress bar (percent 0-100). */
+export function BackBar({ title }: { title: string }) {
+  return (
+    <View className="flex-row items-center gap-3 px-5 pb-1 pt-3">
+      <Pressable
+        onPress={() => router.back()}
+        className="h-10 w-10 items-center justify-center rounded-xl bg-panel">
+        <Txt d className="text-xl">
+          ‹
+        </Txt>
+      </Pressable>
+      <Txt d className="text-2xl">
+        {title}
+      </Txt>
+    </View>
+  );
+}
+
 export function Bar({
   percent,
   color = "#4FD1C5",
   height = 10,
+  animated = true,
 }: {
   percent: number;
   color?: string;
   height?: number;
+  animated?: boolean;
 }) {
-  const w = useRef(new Animated.Value(percent)).current;
+  const clamped = Math.min(
+    100,
+    Math.max(0, Number.isFinite(percent) ? percent : 0),
+  );
+  const w = useSharedValue(clamped);
   useEffect(() => {
-    Animated.timing(w, {
-      toValue: percent,
-      duration: 160,
-      useNativeDriver: false,
-    }).start();
-  }, [percent]);
+    w.value = animated ? withTiming(clamped, { duration: 160 }) : clamped;
+  }, [clamped, animated, w]);
+  const fill = useAnimatedStyle(() => ({ width: `${w.value}%` }));
   return (
     <View
       className="overflow-hidden bg-line"
       style={{ height, borderRadius: height / 2 }}>
-      <Animated.View
-        style={{
-          height: "100%",
-          backgroundColor: color,
-          width: w.interpolate({
-            inputRange: [0, 100],
-            outputRange: ["0%", "100%"],
-            extrapolate: "clamp",
-          }),
-        }}
-      />
+      {animated ? (
+        <Animated.View
+          style={[{ height: "100%", backgroundColor: color }, fill]}
+        />
+      ) : (
+        <View
+          style={{
+            height: "100%",
+            backgroundColor: color,
+            width: `${clamped}%`,
+          }}
+        />
+      )}
     </View>
   );
 }
 
-/** Chunky button that squeezes when pressed. */
 export function Btn({
   label,
   onPress,
+  onPressIn,
   tone = "amber",
   disabled = false,
   big = false,
+  icon,
   className = "",
 }: {
   label: string;
-  onPress: () => void;
-  tone?: "amber" | "teal" | "line";
+  onPress?: () => void;
+  onPressIn?: () => void;
+  tone?: "amber" | "teal" | "line" | "danger";
   disabled?: boolean;
   big?: boolean;
+  icon?: ReactNode;
   className?: string;
 }) {
-  const s = useRef(new Animated.Value(1)).current;
-  const to = (v: number) =>
-    Animated.spring(s, {
-      toValue: v,
-      speed: 40,
-      bounciness: 6,
-      useNativeDriver: true,
-    }).start();
+  const s = useSharedValue(1);
+  const to = (v: number) => {
+    s.value = withSpring(v, { damping: 12, stiffness: 400 });
+  };
+  const press = useAnimatedStyle(() => ({ transform: [{ scale: s.value }] }));
   const bg =
-    tone === "amber" ? "bg-amber" : tone === "teal" ? "bg-teal" : "bg-line";
+    tone === "amber"
+      ? "bg-amber"
+      : tone === "teal"
+        ? "bg-teal"
+        : tone === "danger"
+          ? "bg-danger"
+          : "bg-line";
   return (
     <View className={className}>
-      <Animated.View style={{ transform: [{ scale: s }] }}>
+      <Animated.View style={press}>
         <Pressable
           onPress={onPress}
-          onPressIn={() => to(big ? 0.95 : 0.92)}
+          onPressIn={() => {
+            to(big ? 0.95 : 0.92);
+            onPressIn?.();
+          }}
           onPressOut={() => to(1)}
           disabled={disabled}
-          className={`items-center justify-center rounded-[10px] px-4 ${big ? "min-h-[64px]" : "min-h-[44px]"} ${bg} ${disabled ? "opacity-40" : ""}`}>
+          className={`flex-row items-center justify-center gap-1.5 rounded-[10px] px-4 ${big ? "min-h-[64px]" : "min-h-[44px]"} ${bg} ${disabled ? "opacity-40" : ""}`}>
+          {icon}
           <Text
-            className={`font-display uppercase tracking-wide ${big ? "text-2xl" : "text-base"} ${tone === "line" ? "text-ink" : "text-bg"}`}>
+            className={`font-display uppercase tracking-wide ${big ? "text-2xl" : "text-base"} ${tone === "line" || tone === "danger" ? "text-ink" : "text-bg"}`}>
             {label}
           </Text>
         </Pressable>
@@ -189,7 +228,6 @@ export function Btn({
   );
 }
 
-/** Card with a colored stripe or an icon on the left, title + subtitle, and something on the right. */
 export function Row({
   stripe,
   icon,
@@ -198,6 +236,7 @@ export function Row({
   right,
   dim = false,
   outline = false,
+  onPress,
   children,
 }: {
   stripe?: string;
@@ -207,9 +246,10 @@ export function Row({
   right?: ReactNode;
   dim?: boolean;
   outline?: boolean;
+  onPress?: () => void;
   children?: ReactNode;
 }) {
-  return (
+  const body = (
     <View
       className={`rounded-xl bg-panel px-3.5 py-3 ${dim ? "opacity-50" : ""} ${outline ? "border-2 border-amber" : ""}`}>
       <View className="flex-row items-center gap-3">
@@ -235,6 +275,7 @@ export function Row({
       {children}
     </View>
   );
+  return onPress ? <Pressable onPress={onPress}>{body}</Pressable> : body;
 }
 
 export const Tag = ({
@@ -249,7 +290,14 @@ export const Tag = ({
   </Txt>
 );
 
-/** Pill tabs (Tools / Upgrades). */
+export const Chip = ({ label, color }: { label: string; color: string }) => (
+  <View className="rounded-full px-2.5 py-1" style={{ backgroundColor: color }}>
+    <Txt d tone="dark" className="text-[12px]">
+      {label}
+    </Txt>
+  </View>
+);
+
 export function PillTabs<T extends string>({
   tabs,
   active,
@@ -260,7 +308,7 @@ export function PillTabs<T extends string>({
   onChange: (id: T) => void;
 }) {
   return (
-    <View className="flex-row gap-2.5 px-5 pb-2">
+    <View className="flex-row gap-2 px-5 pb-2">
       {tabs.map((t) => (
         <Pressable
           key={t.id}
@@ -274,3 +322,9 @@ export function PillTabs<T extends string>({
     </View>
   );
 }
+
+export const Section = ({ title }: { title: string }) => (
+  <Txt d tone="mute" className="px-1 pt-2 text-sm">
+    {title}
+  </Txt>
+);

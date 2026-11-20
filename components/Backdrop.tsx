@@ -1,10 +1,14 @@
 import { LinearGradient } from "expo-linear-gradient";
-import { useEffect, useRef, useState } from "react";
-import { Animated, StyleSheet, View, useWindowDimensions } from "react-native";
+import { useEffect, useState } from "react";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import type { Rock } from "@/context/GameContext";
 import { ZoneDecor, mix } from "./GameGraphics";
 
-/** One full-screen layer: gradient + soft glow behind the rock + decorations of the current ore. */
 function Layer({ rock }: { rock: Rock }) {
   const { width, height } = useWindowDimensions();
   const cy = height * 0.4;
@@ -39,35 +43,30 @@ function Layer({ rock }: { rock: Rock }) {
   );
 }
 
-/** Cross-fades to the new layer whenever the ore under your pickaxe changes. */
 export function Backdrop({ rock }: { rock: Rock }) {
   const [prev, setPrev] = useState(rock);
   const [cur, setCur] = useState(rock);
-  const fade = useRef(new Animated.Value(1)).current;
+  const fade = useSharedValue(1);
 
   useEffect(() => {
     if (rock.id === cur.id) return;
     setPrev(cur);
     setCur(rock);
-    fade.setValue(0);
-    Animated.timing(fade, {
-      toValue: 1,
-      duration: 450,
-      useNativeDriver: true,
-    }).start();
-  }, [rock.id]);
+    fade.value = 0;
+    fade.value = withTiming(1, { duration: 450 });
+  }, [rock.id, cur, fade, rock]);
 
+  const fadeStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <Layer rock={prev} />
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: fade }]}>
+      <Animated.View style={[StyleSheet.absoluteFill, fadeStyle]}>
         <Layer rock={cur} />
       </Animated.View>
     </View>
   );
 }
 
-/** Calm gradient used by Shop / Map / Quests. */
 export function CalmBackdrop() {
   return (
     <LinearGradient

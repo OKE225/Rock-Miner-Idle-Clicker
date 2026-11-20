@@ -1,10 +1,10 @@
 import { ScrollView, View } from "react-native";
-import { RockGraphic } from "@/components/GameGraphics";
-import { Bar, Row, Screen, Tag, TopBar, Txt } from "@/components/ui";
-import { ROCKS, ZONES, useGame } from "@/context/GameContext";
+import { HazardGraphic, RockGraphic } from "@/components/GameGraphics";
+import { Bar, Row, Screen, Section, Tag, TopBar, Txt } from "@/components/ui";
+import { HAZARD_LIST, ROCKS, ZONES, useGame } from "@/context/GameContext";
 
 export default function MapScreen() {
-  const { myCoins, depth, zoneIndex, nextZone, currentZone } = useGame();
+  const { depth, zoneIndex, nextZone, currentZone } = useGame();
   const progress = nextZone
     ? ((depth - currentZone.startDepth) /
         (nextZone.startDepth - currentZone.startDepth)) *
@@ -13,14 +13,18 @@ export default function MapScreen() {
 
   return (
     <Screen>
-      <TopBar coins={myCoins} label="Depth" value={`${depth} m`} />
+      <TopBar />
       <ScrollView
         className="flex-1"
         contentContainerClassName="gap-2.5 px-5 pb-6">
-        <Txt tone="mute" className="text-sm">
-          Dig down layer by layer. Deeper zones have tougher rocks and richer
-          ore.
-        </Txt>
+        <View className="flex-row items-baseline justify-between">
+          <Txt tone="mute" className="text-sm">
+            Dig down layer by layer.
+          </Txt>
+          <Txt d className="text-xl">
+            {depth} m
+          </Txt>
+        </View>
 
         {ZONES.map((zone, i) => {
           const right =
@@ -65,6 +69,27 @@ export default function MapScreen() {
           </View>
           <Bar percent={progress} color="#E8A33D" />
         </View>
+
+        <Section title="Hazards (they never hurt you, they are just very tough)" />
+        {HAZARD_LIST.map((h) => (
+          <Row
+            key={h.id}
+            icon={<HazardGraphic kind={h.id} size={46} />}
+            title={h.name}
+            sub={h.tagline}
+            right={
+              <Tag
+                label={`Zone ${h.minZone + 1}+`}
+                tone={zoneIndex >= h.minZone ? "ok" : "mute"}
+              />
+            }
+            dim={zoneIndex < h.minZone}>
+            <Txt tone="amber" bold className="mt-1 text-[13px]">
+              Big coin reward · {Math.round(h.chestChance * 100)}% chest ·{" "}
+              {Math.round(h.diamondChance * 100)}% diamonds
+            </Txt>
+          </Row>
+        ))}
       </ScrollView>
     </Screen>
   );

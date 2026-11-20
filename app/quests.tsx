@@ -1,39 +1,34 @@
-import { useEffect, useRef } from "react";
-import { Animated, ScrollView, View } from "react-native";
+import { useEffect } from "react";
+import { ScrollView, View } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import { Bar, Btn, Screen, Tag, TopBar, Txt } from "@/components/ui";
 import {
+  CHESTS,
   TASKS,
   formatNumber,
   useGame,
   type GameTask,
 } from "@/context/GameContext";
 
-/** Pulses while a reward is waiting to be claimed. */
 function Pulse({ children }: { children: React.ReactNode }) {
-  const v = useRef(new Animated.Value(1)).current;
+  const v = useSharedValue(1);
   useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(v, {
-          toValue: 1.08,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(v, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-      ]),
+    v.value = withRepeat(
+      withSequence(
+        withTiming(1.08, { duration: 500 }),
+        withTiming(1, { duration: 500 }),
+      ),
+      -1,
     );
-    loop.start();
-    return () => loop.stop();
   }, [v]);
-  return (
-    <Animated.View style={{ transform: [{ scale: v }] }}>
-      {children}
-    </Animated.View>
-  );
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: v.value }] }));
+  return <Animated.View style={style}>{children}</Animated.View>;
 }
 
 function TaskCard({ task }: { task: GameTask }) {
@@ -41,15 +36,22 @@ function TaskCard({ task }: { task: GameTask }) {
   const progress = Math.min(taskProgress[task.id], task.target);
   const done = progress >= task.target;
   const claimed = claimedTaskIds.includes(task.id);
+  const reward = [
+    task.reward > 0 ? `+${formatNumber(task.reward)} coins` : "",
+    task.diamonds ? `${task.diamonds} diamonds` : "",
+    task.chest ? CHESTS[task.chest].name : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
-  let right = <Tag label={`+${formatNumber(task.reward)}`} tone="amber" />;
+  let right = null;
   if (claimed) right = <Tag label="Claimed" tone="ok" />;
   else if (done)
     right = (
       <Pulse>
         <Btn
           tone="teal"
-          label={`Claim ${formatNumber(task.reward)}`}
+          label="Claim"
           onPress={() => claimTaskReward(task.id)}
         />
       </Pulse>
@@ -65,6 +67,9 @@ function TaskCard({ task }: { task: GameTask }) {
           </Txt>
           <Txt tone="mute" className="text-sm">
             {task.description}
+          </Txt>
+          <Txt tone="amber" bold className="text-[13px]">
+            {reward}
           </Txt>
         </View>
         {right}
@@ -85,21 +90,22 @@ function TaskCard({ task }: { task: GameTask }) {
 }
 
 export default function QuestsScreen() {
-  const { myCoins, claimedTaskIds, taskProgress } = useGame();
-  // ready to claim first, then in progress, claimed last
+  const { claimedTaskIds, taskProgress } = useGame();
   const rank = (t: GameTask) =>
     claimedTaskIds.includes(t.id) ? 2 : taskProgress[t.id] >= t.target ? 0 : 1;
   const sorted = [...TASKS].sort((a, b) => rank(a) - rank(b));
   return (
     <Screen>
-      <TopBar
-        coins={myCoins}
-        label="Completed"
-        value={`${claimedTaskIds.length}/${TASKS.length}`}
-      />
+      <TopBar />
       <ScrollView
         className="flex-1"
         contentContainerClassName="gap-2.5 px-5 pb-6">
+        <Txt tone="mute" className="text-sm">
+          Completed:{" "}
+          <Txt bold className="text-sm">
+            {claimedTaskIds.length}/{TASKS.length}
+          </Txt>
+        </Txt>
         {sorted.map((task) => (
           <TaskCard key={task.id} task={task} />
         ))}

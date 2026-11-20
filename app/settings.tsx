@@ -1,63 +1,99 @@
-import { Alert, View } from "react-native";
+import { Alert, ScrollView, Switch, View } from "react-native";
+import { BackBar, Btn, Screen, Section, TopBar, Txt } from "@/components/ui";
+import { COSMETICS, useGame } from "@/context/GameContext";
+import type { Settings } from "@/context/GameContext";
+import { purchasesMode } from "@/services/purchases";
 
-import { useGame } from "@/context/GameContext";
-import { Btn, Row, Screen, Tag, TopBar, Txt } from "@/components/ui";
+const SETTINGS: { key: keyof Settings; label: string }[] = [
+  { key: "haptics", label: "Vibration on hit" },
+  { key: "numbers", label: "Floating damage numbers" },
+  { key: "shake", label: "Screen shake" },
+];
 
 export default function SettingsScreen() {
-  const { myCoins, depth, resetGame } = useGame();
+  const { state, toggleSetting, setCosmetic, resetAll } = useGame();
+  const owned = COSMETICS.filter((c) => state.cosmetics.includes(c.id));
 
-  const confirmReset = () => {
+  const reset = () =>
     Alert.alert(
-      "Reset game?",
-      "This will permanently delete your coins, depth, tools, upgrades and quest progress. This action cannot be undone.",
+      "Reset everything?",
+      "This deletes ALL progress, including diamonds, chests and skills.",
       [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Reset",
-          style: "destructive",
-          onPress: resetGame,
-        },
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: resetAll },
       ],
     );
-  };
 
   return (
     <Screen>
-      <TopBar coins={myCoins} label="Depth" value={`${depth} m`} />
+      <TopBar />
+      <BackBar title="Settings" />
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="gap-2.5 px-5 pb-8 pt-2">
+        <Section title="Game" />
+        {SETTINGS.map((x) => (
+          <View
+            key={x.key}
+            className="flex-row items-center justify-between rounded-xl bg-panel px-3.5 py-2.5">
+            <Txt>{x.label}</Txt>
+            <Switch
+              value={state.settings[x.key]}
+              onValueChange={() => toggleSetting(x.key)}
+              trackColor={{ false: "#3A2F27", true: "#E8A33D" }}
+              thumbColor="#F3E9DC"
+            />
+          </View>
+        ))}
 
-      <View className="gap-2.5 px-5 pt-1">
-        <Row
-          title="Game version"
-          sub="Mining Idle v1.0.0"
-          right={<Tag label="Stable" tone="ok" />}
-        />
+        <Section title="Hit effect (found in Crystal and Vibranium chests)" />
+        {owned.length === 0 ? (
+          <Txt tone="mute" className="text-sm">
+            No hit effects yet.
+          </Txt>
+        ) : (
+          <View className="flex-row flex-wrap gap-2">
+            <Btn
+              tone={state.activeCosmetic === null ? "amber" : "line"}
+              label="None"
+              onPress={() => setCosmetic(null)}
+            />
+            {owned.map((c) => (
+              <Btn
+                key={c.id}
+                tone={state.activeCosmetic === c.id ? "amber" : "line"}
+                label={c.name}
+                onPress={() => setCosmetic(c.id)}
+              />
+            ))}
+          </View>
+        )}
 
-        <Row
-          title="Sound effects"
-          sub="Coming soon"
-          right={<Tag label="Off" tone="mute" />}
-        />
+        <Section title="Store" />
+        <View className="rounded-xl bg-panel px-3.5 py-3">
+          <Txt d className="text-base">
+            {purchasesMode() === "revenuecat"
+              ? "Connected to the store"
+              : "Demo mode"}
+          </Txt>
+          <Txt tone="mute" className="text-sm">
+            {purchasesMode() === "revenuecat"
+              ? "Diamond packs are real purchases."
+              : "Diamond purchases are simulated until RevenueCat is connected."}
+          </Txt>
+        </View>
 
-        <Row
-          title="Haptic feedback"
-          sub="Vibration on hits and rewards"
-          right={<Tag label="On" tone="ok" />}
-        />
-
-        <Row
-          title="Reset progress"
-          sub="Delete all saved game progress and start again"
-          right={<Btn label="Reset" onPress={confirmReset} />}
-        />
-
-        <Txt tone="mute" className="px-1 pt-2 text-[13px]">
-          Resetting the game cannot be undone. Make sure you really want to
-          start from the beginning.
+        <Section title="Progress" />
+        <Txt tone="mute" className="text-sm">
+          The game saves itself automatically, also when you close the app.
         </Txt>
-      </View>
+        <Btn
+          tone="danger"
+          label="Reset all progress"
+          onPress={reset}
+          className="mt-1"
+        />
+      </ScrollView>
     </Screen>
   );
 }
